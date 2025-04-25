@@ -16,7 +16,7 @@ export class UsuariosService {
     @InjectRepository(Usuario)
     private readonly usuarioRepo: Repository<Usuario>,
   ) {}
-  /* NO BORRAR
+  /* NO BORRAR 
   async create(createDto: CreateUsuarioDto): Promise<Usuario> {
     await this.validarExistencia(createDto.id_usuario, createDto.email);
 
