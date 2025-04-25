@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Usuario } from './entities/usuario.entity';
@@ -10,61 +14,60 @@ import * as bcrypt from 'bcrypt';
 export class UsuariosService {
   constructor(
     @InjectRepository(Usuario)
-    private usuarioRepository: Repository<Usuario>,
+    private readonly usuarioRepo: Repository<Usuario>,
   ) {}
 
-  async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
-    const existe = await this.usuarioRepository.findOne({
-      where: [
-        { id_usuario: createUsuarioDto.id_usuario },
-        { email: createUsuarioDto.email },
-      ],
+  async create(createDto: CreateUsuarioDto): Promise<Usuario> {
+    await this.validarExistencia(createDto.id_usuario, createDto.email);
+
+    const nuevo = this.usuarioRepo.create({
+      ...createDto,
+      passwordHash: await this.hashear(createDto.passwordHash),
     });
 
-    if (existe) {
-      throw new BadRequestException('Ya existe un usuario con ese DNI o email');
-    }
-
-    const hashedPassword = await bcrypt.hash(createUsuarioDto.passwordHash, 10);
-    const nuevoUsuario = this.usuarioRepository.create({
-      ...createUsuarioDto,
-      passwordHash: hashedPassword,
-    });
-
-    return this.usuarioRepository.save(nuevoUsuario);
+    return this.usuarioRepo.save(nuevo);
   }
 
-  async findAll(): Promise<Usuario[]> {
-    return this.usuarioRepository.find();
+  findAll(): Promise<Usuario[]> {
+    return this.usuarioRepo.find();
   }
 
   async findOne(id: string): Promise<Usuario> {
-    const usuario = await this.usuarioRepository.findOne({
-      where: { id_usuario: id },
-    });
+    const user = await this.usuarioRepo.findOne({ where: { id_usuario: id } });
 
-    if (!usuario) {
-      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
-    }
-
-    return usuario;
+    if (!user) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    return user;
   }
 
-  async update(id: string, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+  async update(id: string, updateDto: UpdateUsuarioDto): Promise<Usuario> {
     const usuario = await this.findOne(id);
 
-    // Si incluye nueva contraseña, la hasheamos
-    if (updateUsuarioDto.passwordHash) {
-      updateUsuarioDto.passwordHash = await bcrypt.hash(updateUsuarioDto.passwordHash, 10);
+    if (updateDto.passwordHash) {
+      updateDto.passwordHash = await this.hashear(updateDto.passwordHash);
     }
 
-    const actualizado = this.usuarioRepository.merge(usuario, updateUsuarioDto);
-    return this.usuarioRepository.save(actualizado);
+    const actualizado = this.usuarioRepo.merge(usuario, updateDto);
+    return this.usuarioRepo.save(actualizado);
   }
 
   async remove(id: string): Promise<{ message: string }> {
     const usuario = await this.findOne(id);
-    await this.usuarioRepository.remove(usuario);
+    await this.usuarioRepo.remove(usuario);
     return { message: `Usuario con ID ${id} eliminado correctamente` };
+  }
+
+  // MÉTODOS PRIVADOS
+  private async validarExistencia(id: string, email: string) {
+    const existe = await this.usuarioRepo.findOne({
+      where: [{ id_usuario: id }, { email }],
+    });
+
+    if (existe) {
+      throw new ConflictException('Ya existe un usuario con ese DNI o email');
+    }
+  }
+
+  private async hashear(pass: string): Promise<string> {
+    return bcrypt.hash(pass, 10);
   }
 }
