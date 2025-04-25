@@ -16,7 +16,7 @@ export class UsuariosService {
     @InjectRepository(Usuario)
     private readonly usuarioRepo: Repository<Usuario>,
   ) {}
-
+  /* NO BORRAR
   async create(createDto: CreateUsuarioDto): Promise<Usuario> {
     await this.validarExistencia(createDto.id_usuario, createDto.email);
 
@@ -26,7 +26,20 @@ export class UsuariosService {
     });
 
     return this.usuarioRepo.save(nuevo);
-  }
+  }*/
+    async create(createDto: CreateUsuarioDto): Promise<{ message: string }> {
+      await this.validarExistencia(createDto.id_usuario, createDto.email);
+    
+      const nuevo = this.usuarioRepo.create({
+        ...createDto,
+        passwordHash: await this.hashear(createDto.passwordHash),
+      });
+    
+      await this.usuarioRepo.save(nuevo);
+    
+      return { message: `Usuario ${nuevo.id_usuario} creado correctamente` };
+    }
+    
 
   findAll(): Promise<Usuario[]> {
     return this.usuarioRepo.find();
