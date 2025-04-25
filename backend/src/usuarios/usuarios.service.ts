@@ -1,35 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Usuario } from './entities/usuario.entity';
 import { CreateUsuarioDto } from './dto/create-usuario.dto';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Usuario } from './entities/usuario.entity';
-import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsuariosService {
-  // Inyectar el repositorio de Usuario para poder realizar operaciones en la base de datos
-  // El repositorio es una abstracción que permite interactuar con la base de datos de manera más sencilla
-  // y sin tener que escribir consultas SQL directamente.
-  constructor(@InjectRepository(Usuario) private usuarioRepository: Repository<Usuario>) {}
-  
-  create(createUsuarioDto: CreateUsuarioDto) {
+  constructor(
+    @InjectRepository(Usuario)
+    private usuarioRepository: Repository<Usuario>,
+  ) {}
+
+  async create(createUsuarioDto: CreateUsuarioDto): Promise<Usuario> {
     const nuevoUsuario = this.usuarioRepository.create(createUsuarioDto);
     return this.usuarioRepository.save(nuevoUsuario);
   }
 
-  findAll() {
-    return `This action returns all usuarios`;
+  async findAll(): Promise<Usuario[]> {
+    return this.usuarioRepository.find();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} usuario`;
+  async findOne(id: string): Promise<Usuario> {
+    const usuario = await this.usuarioRepository.findOne({ where: { id_usuario: id } });
+    if (!usuario) {
+      throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+    }
+    return usuario;
   }
 
-  update(id: number, updateUsuarioDto: UpdateUsuarioDto) {
-    return `This action updates a #${id} usuario`;
+  async update(id: string, updateUsuarioDto: UpdateUsuarioDto): Promise<Usuario> {
+    const usuario = await this.findOne(id);
+    const actualizado = this.usuarioRepository.merge(usuario, updateUsuarioDto);
+    return this.usuarioRepository.save(actualizado);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} usuario`;
+  async remove(id: string): Promise<{ message: string }> {
+    const usuario = await this.findOne(id);
+    await this.usuarioRepository.remove(usuario);
+    return { message: `Usuario con ID ${id} eliminado correctamente` };
   }
 }
