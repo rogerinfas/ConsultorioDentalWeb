@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsuariosModule } from './usuarios/usuarios.module';
 
 
 @Module({
@@ -22,7 +23,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         synchronize: true,
       }),
       inject: [ConfigService],
-    }),
+    }), UsuariosModule,
   ],
   controllers: [AppController],
   providers: [AppService],
